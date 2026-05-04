@@ -19,7 +19,7 @@ st.markdown("""
 st.title("🌳 Pflanzen-Detektor – PlantNet-300K")
 st.markdown("**ViT-Modell (Hugging Face)**")
 
-# ====================== MODELL LADEN ======================
+# ====================== MODELL LADEN mit Fix ======================
 @st.cache_resource
 def load_model():
     try:
@@ -28,9 +28,12 @@ def load_model():
         processor = AutoImageProcessor.from_pretrained(model_name)
         model = AutoModelForImageClassification.from_pretrained(model_name)
         
-        # Fix für altes id2label-Format
-        if isinstance(model.config.id2label, dict):
-            model.config.id2label = {int(k): str(v) for k, v in model.config.id2label.items()}
+        # === STARKER FIX für das id2label-Problem ===
+        if hasattr(model.config, "id2label") and isinstance(model.config.id2label, dict):
+            # Alle Werte in Strings umwandeln
+            fixed_id2label = {int(k): str(v) for k, v in model.config.id2label.items()}
+            model.config.id2label = fixed_id2label
+            model.config.label2id = {v: int(k) for k, v in fixed_id2label.items()}
         
         st.success("✅ Modell erfolgreich geladen!")
         return processor, model
@@ -50,8 +53,8 @@ def load_mappings():
             species_to_name = json.load(f)
         st.success("✅ Mapping-Dateien geladen")
         return class_to_species, species_to_name
-    except Exception as e:
-        st.warning("Mapping-Dateien nicht gefunden oder fehlerhaft.")
+    except:
+        st.warning("Mapping-Dateien nicht gefunden.")
         return {}, {}
 
 class_to_species, species_to_name = load_mappings()
