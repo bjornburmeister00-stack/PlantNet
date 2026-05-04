@@ -25,14 +25,17 @@ def load_model():
     try:
         model_name = "janjibDEV/vit-plantnet300k"
         
-        st.info("Lade Modell von Hugging Face...")
         processor = AutoImageProcessor.from_pretrained(model_name)
         model = AutoModelForImageClassification.from_pretrained(model_name)
+        
+        # Fix für altes id2label-Format
+        if isinstance(model.config.id2label, dict):
+            model.config.id2label = {int(k): str(v) for k, v in model.config.id2label.items()}
+        
         st.success("✅ Modell erfolgreich geladen!")
         return processor, model
     except Exception as e:
         st.error(f"Fehler beim Laden des Modells: {e}")
-        st.info("Tipp: Stelle sicher, dass 'torch' und 'torchvision' in requirements.txt sind.")
         return None, None
 
 processor, model = load_model()
@@ -45,8 +48,10 @@ def load_mappings():
             class_to_species = json.load(f)
         with open("plantnet300K_species_id_2_name.json", "r", encoding="utf-8") as f:
             species_to_name = json.load(f)
+        st.success("✅ Mapping-Dateien geladen")
         return class_to_species, species_to_name
-    except:
+    except Exception as e:
+        st.warning("Mapping-Dateien nicht gefunden oder fehlerhaft.")
         return {}, {}
 
 class_to_species, species_to_name = load_mappings()
@@ -93,7 +98,7 @@ with tab1:
         """, unsafe_allow_html=True)
 
 with tab2:
-    st.info("Modell: janjibDEV/vit-plantnet300k (PlantNet-300K)")
+    st.info("Modell: janjibDEV/vit-plantnet300k")
 
 st.markdown("---")
 st.markdown('<p class="footer">Schulprojekt 2026 – [Dein Name]</p>', unsafe_allow_html=True)
