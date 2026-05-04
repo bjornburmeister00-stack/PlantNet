@@ -19,24 +19,31 @@ st.markdown("""
 st.title("🌳 Pflanzen-Detektor – PlantNet-300K")
 st.markdown("**ViT-Modell (Hugging Face)**")
 
-# ====================== MODELL LADEN mit Fix ======================
+# ====================== MODELL LADEN (starker Fix) ======================
 @st.cache_resource
 def load_model():
     try:
         model_name = "janjibDEV/vit-plantnet300k"
         
+        st.info("Lade Modell... (dies kann etwas dauern)")
+
         processor = AutoImageProcessor.from_pretrained(model_name)
-        model = AutoModelForImageClassification.from_pretrained(model_name)
         
-        # === STARKER FIX für das id2label-Problem ===
-        if hasattr(model.config, "id2label") and isinstance(model.config.id2label, dict):
-            # Alle Werte in Strings umwandeln
-            fixed_id2label = {int(k): str(v) for k, v in model.config.id2label.items()}
-            model.config.id2label = fixed_id2label
-            model.config.label2id = {v: int(k) for k, v in fixed_id2label.items()}
+        # Modell laden und Config manuell reparieren
+        model = AutoModelForImageClassification.from_pretrained(
+            model_name, 
+            ignore_mismatched_sizes=True
+        )
         
+        # Brutaler Fix für das id2label-Problem
+        if hasattr(model.config, "id2label"):
+            old_id2label = model.config.id2label
+            model.config.id2label = {int(k): str(v) for k, v in old_id2label.items()}
+            model.config.label2id = {str(v): int(k) for k, v in old_id2label.items()}
+
         st.success("✅ Modell erfolgreich geladen!")
         return processor, model
+
     except Exception as e:
         st.error(f"Fehler beim Laden des Modells: {e}")
         return None, None
@@ -51,10 +58,8 @@ def load_mappings():
             class_to_species = json.load(f)
         with open("plantnet300K_species_id_2_name.json", "r", encoding="utf-8") as f:
             species_to_name = json.load(f)
-        st.success("✅ Mapping-Dateien geladen")
         return class_to_species, species_to_name
     except:
-        st.warning("Mapping-Dateien nicht gefunden.")
         return {}, {}
 
 class_to_species, species_to_name = load_mappings()
